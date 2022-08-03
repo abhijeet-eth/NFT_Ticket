@@ -85,10 +85,22 @@ contract TicketNFT is ERC1155, Ownable {
         public
         onlyOwner
     {
+        for(uint i = 0 ; i < ids.length ; i++){
+            
+            _ticketDetails[i] = TicketDetails({
+
+            purchasePrice: _ticketPrice,
+            sellingPrice: 0,
+            forSale: false
+        });
+        }
+
         _mintBatch(to, ids, amounts, data);
+
+
     }
 
-    function transferTicket(
+    function primaryTransferTicket(
         address seller,
         address buyer,
         uint saleTicketId,
@@ -96,7 +108,6 @@ contract TicketNFT is ERC1155, Ownable {
         bytes memory data) 
         
         public {
-
 
         require(
             seller == _organiser,
