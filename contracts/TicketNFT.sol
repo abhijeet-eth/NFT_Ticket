@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "hardhat/console.sol";
 
 contract TicketNFT is ERC1155, Ownable {
     uint256 public constant VIP = 1;
@@ -19,10 +20,10 @@ contract TicketNFT is ERC1155, Ownable {
     address private _organiser;
     address[] private customers;
     uint256[] private ticketsForSale;
-    uint256 private _ticketPrice;
+    // uint256 private _ticketPrice;
     uint256 private _totalSupply;
 
-    mapping(uint256 => TicketDetails) private _ticketDetails;
+    mapping(uint256 => TicketDetails) public _ticketDetails;
     mapping(address => mapping(uint =>uint256[])) public  purchasedTickets;
     mapping (uint => uint) public categoryWiseTotalSupply;
 
@@ -36,22 +37,35 @@ contract TicketNFT is ERC1155, Ownable {
         );
         _;
     }
+
+    receive() external payable{
+
+    }
     
 
     constructor(
-        uint256 ticketPrice,
+        // uint256 ticketPrice,
         uint totalVipTicket,
         uint totalRsvpTicket,
         uint totalGeneralTicket
     ) ERC1155("https://gateway.pinata.cloud/ipfs/QmVJBppEtr1jCZXDSvvHqSN1jQxuhofpAFMwGn4GtmM9B9/{id}.json") {
         _organiser = msg.sender;
 
-        _ticketPrice = ticketPrice;
+        // _ticketPrice = ticketPrice;
 
 
         categoryWiseTotalSupply[1] = totalVipTicket;
         categoryWiseTotalSupply[2] = totalRsvpTicket;
         categoryWiseTotalSupply[3] = totalGeneralTicket;
+
+        _ticketDetails[VIP] = TicketDetails(5 ether, 0 , false);
+        _ticketDetails[RSVP] = TicketDetails(2 ether, 0 , false);
+        _ticketDetails[General] = TicketDetails(1 ether, 0 , false);
+
+        _mint(msg.sender, VIP, totalVipTicket, "");
+        _mint(msg.sender, RSVP, totalRsvpTicket, "");
+        _mint(msg.sender, General, totalGeneralTicket, "");
+        
     }
 
 
@@ -73,7 +87,7 @@ contract TicketNFT is ERC1155, Ownable {
         onlyOwner
     {
             _ticketDetails[newTicketId] = TicketDetails({
-            purchasePrice: _ticketPrice,
+            purchasePrice: _ticketDetails[newTicketId].purchasePrice,
             sellingPrice: 0,
             forSale: false
         });
@@ -89,7 +103,7 @@ contract TicketNFT is ERC1155, Ownable {
             
             _ticketDetails[i] = TicketDetails({
 
-            purchasePrice: _ticketPrice,
+            purchasePrice: _ticketDetails[i].purchasePrice,
             sellingPrice: 0,
             forSale: false
         });
@@ -104,43 +118,58 @@ contract TicketNFT is ERC1155, Ownable {
         address seller,
         address buyer,
         uint saleTicketId,
-        uint amount,
+        uint ticketQuantity,
         bytes memory data) 
         
-        public {
+        public payable{
 
         require(
             seller == _organiser,
             "Only initial purchase allowed"
         );
 
-        safeTransferFrom(seller, buyer, saleTicketId, amount, data);
+        uint price = _ticketDetails[saleTicketId].purchasePrice;
+        console.log("price %s",price);
+
+        uint numOfTickets = (msg.value)/price;
+        console.log("numOfTickets %s", numOfTickets);
+
+        require(ticketQuantity == numOfTickets,"Not exact tickets");
+
+        safeTransferFrom(seller, buyer, saleTicketId, ticketQuantity, data);
 
         if (!isCustomerExist(buyer)) {
             customers.push(buyer);
         }
-        purchasedTickets[buyer][saleTicketId].push(amount);
+        purchasedTickets[buyer][saleTicketId].push(ticketQuantity);
     }
 
     function secondaryTransferTicket(
         address buyer,
         uint256 saleTicketId,
-        uint amount,
         bytes memory data
         )
         public
+        payable 
         isValidSellAmount(saleTicketId)
     {
         // address seller = ownerOf(saleTicketId);
-        uint256 sellingPrice = _ticketDetails[saleTicketId].sellingPrice;
+        uint256 purchasePrice = _ticketDetails[saleTicketId].purchasePrice;
+        uint256 increasedPurchasePrice = purchasePrice + ((purchasePrice * 110) / 100);
 
-        safeTransferFrom(msg.sender, buyer, saleTicketId,amount, data );
+        uint numOfTicket = msg.value / increasedPurchasePrice;
+
+        uint256 sellingPrice = _ticketDetails[saleTicketId].sellingPrice;
+        
+        require(msg.value >= purchasePrice + ((purchasePrice * 110) / 100));
+
+        safeTransferFrom(msg.sender, buyer, saleTicketId, numOfTicket, data );
 
         if (!isCustomerExist(buyer)) {
             customers.push(buyer);
         }
 
-        purchasedTickets[buyer][saleTicketId].push(amount);
+        purchasedTickets[buyer][saleTicketId].push(numOfTicket);
 
         // removeTicketFromCustomer(seller, saleTicketId);
         // removeTicketFromSale(saleTicketId);
@@ -203,8 +232,8 @@ contract TicketNFT is ERC1155, Ownable {
         return false;
     }
 
-        function getTicketPrice() public view returns (uint256) {
-        return _ticketPrice;
+        function getTicketPrice(uint newTicketId) public view returns (uint256) {
+        return _ticketDetails[newTicketId].purchasePrice;
     }
 
     // Get organiser's address
