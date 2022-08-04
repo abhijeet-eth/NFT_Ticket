@@ -29,7 +29,6 @@ contract TicketNFT is ERC1155, Ownable {
 
     mapping(uint256 => TicketDetails) public _ticketDetails;
     mapping(address => mapping(uint =>uint256[])) public  purchasedTickets;
-    mapping (uint => uint) public categoryWiseTotalSupply;
 
     modifier isValidSellAmount(uint256 ticketId) {
         uint256 purchasePrice = _ticketDetails[ticketId].purchasePrice;
@@ -57,11 +56,6 @@ contract TicketNFT is ERC1155, Ownable {
 
         // _ticketPrice = ticketPrice;
 
-
-        categoryWiseTotalSupply[1] = totalVipTicket;
-        categoryWiseTotalSupply[2] = totalRsvpTicket;
-        categoryWiseTotalSupply[3] = totalGeneralTicket;
-
         _ticketDetails[VIP] = TicketDetails(5 ether, 0 , false);
         _ticketDetails[RSVP] = TicketDetails(2 ether, 0 , false);
         _ticketDetails[General] = TicketDetails(1 ether, 0 , false);
@@ -71,9 +65,6 @@ contract TicketNFT is ERC1155, Ownable {
         _mint(msg.sender, General, totalGeneralTicket, "");
         
     }
-
-
-
 
 
     function uri(uint256 _tokenid) override public pure returns (string memory) {
@@ -86,37 +77,35 @@ contract TicketNFT is ERC1155, Ownable {
     }
 
     
-    function mint(address account, uint256 newTicketId, uint256 amount, bytes memory data)
-        public
-        onlyOwner
-    {
-            _ticketDetails[newTicketId] = TicketDetails({
-            purchasePrice: _ticketDetails[newTicketId].purchasePrice,
-            sellingPrice: 0,
-            forSale: false
-        });
+    // function mint(address account, uint256 newTicketId, uint256 amount, bytes memory data)
+    //     public
+    //     onlyOwner
+    // {
+    //         _ticketDetails[newTicketId] = TicketDetails({
+    //         purchasePrice: _ticketDetails[newTicketId].purchasePrice,
+    //         sellingPrice: 0,
+    //         forSale: false
+    //     });
 
-            _mint(account, newTicketId, amount, data);
-    }   
+    //         _mint(account, newTicketId, amount, data);
+    // }   
 
-    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)
-        public
-        onlyOwner
-    {
-        for(uint i = 0 ; i < ids.length ; i++){
+    // function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)
+    //     public
+    //     onlyOwner
+    // {
+    //     for(uint i = 0 ; i < ids.length ; i++){
             
-            _ticketDetails[i] = TicketDetails({
+    //         _ticketDetails[i] = TicketDetails({
 
-            purchasePrice: _ticketDetails[i].purchasePrice,
-            sellingPrice: 0,
-            forSale: false
-        });
-        }
+    //         purchasePrice: _ticketDetails[i].purchasePrice,
+    //         sellingPrice: 0,
+    //         forSale: false
+    //     });
+    //     }
 
-        _mintBatch(to, ids, amounts, data);
-
-
-    }
+    //     _mintBatch(to, ids, amounts, data);
+    // }
 
     function primaryTransferTicket(
         address seller,
@@ -154,6 +143,8 @@ contract TicketNFT is ERC1155, Ownable {
         purchasedTickets[buyer][saleTicketId].push(ticketQuantity);
     }
 
+    
+
     function secondaryTransferTicket(
         address seller,
         uint256 saleTicketId,
@@ -164,7 +155,6 @@ contract TicketNFT is ERC1155, Ownable {
         payable 
         isValidSellAmount(saleTicketId)
     {
-        // address seller = ownerOf(saleTicketId);
         uint256 purchasePrice = _ticketDetails[saleTicketId].purchasePrice;
         
         uint256 increasedPurchasePrice = purchasePrice + ((purchasePrice * 10) / 100);console.log("increasedPurchasePrice %s", increasedPurchasePrice);
@@ -172,11 +162,6 @@ contract TicketNFT is ERC1155, Ownable {
         uint numOfTicket = msg.value / increasedPurchasePrice;
         
         require(ticketQty == numOfTicket, "Not exact tickets !!");
-
-        // uint256 sellingPrice = _ticketDetails[saleTicketId].sellingPrice;
-        
-        // uint ticketValue = ticketQty * (increasedPurchasePrice);    
-        // require(msg.value == ticketValue);
 
         uint royaltyFees = (msg.value * 1)/100;
         uint restAmount = msg.value - royaltyFees;
@@ -209,7 +194,6 @@ contract TicketNFT is ERC1155, Ownable {
 
     function setSaleDetails(
         uint256 ticketId,
-        uint256 amount,
         uint256 sellingPrice,
         address operator
     ) public {
@@ -257,7 +241,7 @@ contract TicketNFT is ERC1155, Ownable {
         return false;
     }
 
-        function getTicketPrice(uint newTicketId) public view returns (uint256) {
+    function getTicketPrice(uint newTicketId) public view returns (uint256) {
         return _ticketDetails[newTicketId].purchasePrice;
     }
 
@@ -267,18 +251,18 @@ contract TicketNFT is ERC1155, Ownable {
     }
 
     // Get current ticketId
-    function ticketRemaining(uint id) public view returns (uint256[] memory) {
-        return purchasedTickets[address(this)][id];
+    function ticketRemaining(uint id) public view returns (uint256) {
+        return balanceOf(_organiser,id);
     }
+
+    function ticketRemaining(address[] memory users, uint[] memory ids) public view returns (uint256[] memory) {
+        return balanceOfBatch(users,ids);
+    }
+    
 
     // Get selling price for the ticket
     function getSellingPrice(uint256 ticketId) public view returns (uint256) {
         return _ticketDetails[ticketId].sellingPrice;
-    }
-
-    // Get all tickets available for sale
-    function getTicketsForSale() public view returns (uint256[] memory) {
-        return ticketsForSale;
     }
 
     // Get ticket details
@@ -304,7 +288,7 @@ contract TicketNFT is ERC1155, Ownable {
         view
         returns (uint256[] memory)
     {
-        return purchasedTickets[customer][id];
+    return purchasedTickets[customer][id];
     }
 
     function contractEther() public view returns(uint){
