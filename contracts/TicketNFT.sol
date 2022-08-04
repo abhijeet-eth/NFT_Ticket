@@ -1,3 +1,7 @@
+//0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+//0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2
+//0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -128,14 +132,20 @@ contract TicketNFT is ERC1155, Ownable {
             "Only initial purchase allowed"
         );
 
+        require(
+            buyer != _organiser &&
+            msg.sender != _organiser,
+            "Organiser can't re-buy same ticket in primary transfer"
+        );
+
         uint price = _ticketDetails[saleTicketId].purchasePrice;
-        console.log("price %s",price);
+        // console.log("price %s",price);
 
         uint numOfTickets = (msg.value)/price;
-        console.log("numOfTickets %s", numOfTickets);
+        // console.log("numOfTickets %s", numOfTickets);
 
-        require(ticketQuantity == numOfTickets,"Not exact tickets");
-
+        require(ticketQuantity == numOfTickets,"Not exact tickets, Forgot giving ether?");
+    
         safeTransferFrom(seller, buyer, saleTicketId, ticketQuantity, data);
 
         if (!isCustomerExist(buyer)) {
@@ -145,8 +155,9 @@ contract TicketNFT is ERC1155, Ownable {
     }
 
     function secondaryTransferTicket(
-        address buyer,
+        address seller,
         uint256 saleTicketId,
+        uint ticketAmount,
         bytes memory data
         )
         public
@@ -155,16 +166,25 @@ contract TicketNFT is ERC1155, Ownable {
     {
         // address seller = ownerOf(saleTicketId);
         uint256 purchasePrice = _ticketDetails[saleTicketId].purchasePrice;
-        uint256 increasedPurchasePrice = purchasePrice + ((purchasePrice * 110) / 100);
-
-        uint numOfTicket = msg.value / increasedPurchasePrice;
-
-        uint256 sellingPrice = _ticketDetails[saleTicketId].sellingPrice;
+        console.log("purchasePrice %s", purchasePrice);
         
-        require(msg.value >= purchasePrice + ((purchasePrice * 110) / 100));
+        uint256 increasedPurchasePrice = purchasePrice + ((purchasePrice * 10) / 100);
+        console.log("increasedPurchasePrice %s", increasedPurchasePrice);
+        
+        uint numOfTicket = msg.value / increasedPurchasePrice;
+        console.log("numOfTicket %s", numOfTicket);
+        
+        require(ticketAmount == numOfTicket, "Not exact tickets !!");
 
-        safeTransferFrom(msg.sender, buyer, saleTicketId, numOfTicket, data );
+        // uint256 sellingPrice = _ticketDetails[saleTicketId].sellingPrice;
+        
+        require(msg.value == purchasePrice + ((purchasePrice * 10) / 100));
 
+        safeTransferFrom(seller, msg.sender, saleTicketId, numOfTicket, data );
+        
+        
+        address buyer = msg.sender;
+        
         if (!isCustomerExist(buyer)) {
             customers.push(buyer);
         }
@@ -175,7 +195,7 @@ contract TicketNFT is ERC1155, Ownable {
         // removeTicketFromSale(saleTicketId);
 
         _ticketDetails[saleTicketId] = TicketDetails({
-            purchasePrice: sellingPrice,
+            purchasePrice: increasedPurchasePrice,
             sellingPrice: 0,
             forSale: false
         });
@@ -191,7 +211,7 @@ contract TicketNFT is ERC1155, Ownable {
         uint256 purchasePrice = _ticketDetails[ticketId].purchasePrice;
 
         require(
-            purchasePrice + ((purchasePrice * 110) / 100) > sellingPrice,
+            purchasePrice + ((purchasePrice * 110) / 100) >= sellingPrice,
             "Re-selling price is more than 110%"
         );
 
@@ -280,6 +300,10 @@ contract TicketNFT is ERC1155, Ownable {
         returns (uint256[] memory)
     {
         return purchasedTickets[customer][id];
+    }
+
+    function contractEther() public view returns(uint){
+        return address(this).balance;
     }
 
 
