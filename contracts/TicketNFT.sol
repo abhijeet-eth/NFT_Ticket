@@ -157,7 +157,7 @@ contract TicketNFT is ERC1155, Ownable {
     function secondaryTransferTicket(
         address seller,
         uint256 saleTicketId,
-        uint ticketAmount,
+        uint ticketQty,
         bytes memory data
         )
         public
@@ -166,20 +166,24 @@ contract TicketNFT is ERC1155, Ownable {
     {
         // address seller = ownerOf(saleTicketId);
         uint256 purchasePrice = _ticketDetails[saleTicketId].purchasePrice;
-        console.log("purchasePrice %s", purchasePrice);
         
-        uint256 increasedPurchasePrice = purchasePrice + ((purchasePrice * 10) / 100);
-        console.log("increasedPurchasePrice %s", increasedPurchasePrice);
+        uint256 increasedPurchasePrice = purchasePrice + ((purchasePrice * 10) / 100);console.log("increasedPurchasePrice %s", increasedPurchasePrice);
         
         uint numOfTicket = msg.value / increasedPurchasePrice;
-        console.log("numOfTicket %s", numOfTicket);
         
-        require(ticketAmount == numOfTicket, "Not exact tickets !!");
+        require(ticketQty == numOfTicket, "Not exact tickets !!");
 
         // uint256 sellingPrice = _ticketDetails[saleTicketId].sellingPrice;
         
-        require(msg.value == purchasePrice + ((purchasePrice * 10) / 100));
+        // uint ticketValue = ticketQty * (increasedPurchasePrice);    
+        // require(msg.value == ticketValue);
 
+        uint royaltyFees = (msg.value * 1)/100;
+        uint restAmount = msg.value - royaltyFees;
+
+        payable(address(this)).transfer(royaltyFees);
+        payable(seller).transfer(restAmount);
+        
         safeTransferFrom(seller, msg.sender, saleTicketId, numOfTicket, data );
         
         
@@ -191,11 +195,12 @@ contract TicketNFT is ERC1155, Ownable {
 
         purchasedTickets[buyer][saleTicketId].push(numOfTicket);
 
+        uint256 sellingPrice = _ticketDetails[saleTicketId].sellingPrice;    
         // removeTicketFromCustomer(seller, saleTicketId);
         // removeTicketFromSale(saleTicketId);
 
         _ticketDetails[saleTicketId] = TicketDetails({
-            purchasePrice: increasedPurchasePrice,
+            purchasePrice: sellingPrice,
             sellingPrice: 0,
             forSale: false
         });
